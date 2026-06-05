@@ -1332,6 +1332,7 @@ impl SummonClient {
             goose_provider: params.provider.clone(),
             temperature: params.temperature,
             max_turns: None,
+            request_params: None,
         });
 
         let mut builder = Recipe::builder()
@@ -1404,6 +1405,10 @@ impl SummonClient {
             crate::model::ModelConfig::new("default")
                 .map(|c| c.with_canonical_limits(provider_name))
         })?;
+        let recipe_request_params = recipe
+            .settings
+            .as_ref()
+            .and_then(|settings| settings.request_params.clone());
 
         let override_model = params
             .model
@@ -1437,6 +1442,10 @@ impl SummonClient {
                 }
                 model_config = cfg;
             }
+        }
+
+        if let Some(request_params) = recipe_request_params {
+            model_config = model_config.with_merged_request_params(request_params);
         }
 
         if let Some(temp) = params.temperature {
@@ -2133,6 +2142,7 @@ You review code."#;
                     goose_model: None,
                     temperature: None,
                     max_turns: Some(10),
+                    request_params: None,
                 }),
                 activities: None,
                 author: None,
@@ -2288,6 +2298,117 @@ You review code."#;
                 .as_ref()
                 .and_then(|p| p.get("anthropic_beta")),
             Some(&serde_json::json!("custom-beta-header")),
+        );
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_resolve_model_config_recipe_request_params_override_parent() {
+        let _env = env_lock::lock_env([
+            ("GOOSE_CONTEXT_LIMIT", None::<&str>),
+            ("GOOSE_MAX_TOKENS", None::<&str>),
+            ("GOOSE_SUBAGENT_MODEL", None::<&str>),
+        ]);
+
+        let mut parent = parent_config();
+        parent.request_params = Some(HashMap::from([
+            (
+                "reasoning_effort".to_string(),
+                serde_json::json!("high"),
+            ),
+            ("top_p".to_string(), serde_json::json!(0.8)),
+        ]));
+
+        let recipe = crate::recipe::Recipe {
+            settings: Some(crate::recipe::Settings {
+                goose_provider: None,
+                goose_model: None,
+                temperature: None,
+                max_turns: None,
+                request_params: Some(HashMap::from([
+                    (
+                        "reasoning_effort".to_string(),
+                        serde_json::json!("max"),
+                    ),
+                    ("top_k".to_string(), serde_json::json!(40)),
+                ])),
+            }),
+            ..empty_recipe()
+        };
+
+        let client = SummonClient::new(create_test_context()).unwrap();
+        let resolved = client
+            .resolve_model_config(
+                &DelegateParams::default(),
+                &recipe,
+                &session_with(parent),
+                PROVIDER,
+            )
+            .expect("resolve_model_config");
+
+        let request_params = resolved.request_params.expect("request_params");
+        assert_eq!(
+            request_params.get("reasoning_effort"),
+            Some(&serde_json::json!("max")),
+        );
+        assert_eq!(request_params.get("top_p"), Some(&serde_json::json!(0.8)));
+        assert_eq!(request_params.get("top_k"), Some(&serde_json::json!(40)));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_resolve_model_config_recipe_request_params_apply_with_model_override() {
+        let _env = env_lock::lock_env([
+            ("GOOSE_CONTEXT_LIMIT", None::<&str>),
+            ("GOOSE_MAX_TOKENS", None::<&str>),
+            ("GOOSE_SUBAGENT_MODEL", None::<&str>),
+        ]);
+
+        let mut parent = parent_config();
+        parent.request_params = Some(HashMap::from([(
+            "anthropic_beta".to_string(),
+            serde_json::json!("parent-beta"),
+        )]));
+
+        let recipe = crate::recipe::Recipe {
+            settings: Some(crate::recipe::Settings {
+                goose_provider: None,
+                goose_model: Some(OVERRIDE_MODEL.to_string()),
+                temperature: None,
+                max_turns: None,
+                request_params: Some(HashMap::from([
+                    (
+                        "anthropic_beta".to_string(),
+                        serde_json::json!("recipe-beta"),
+                    ),
+                    (
+                        "reasoning_effort".to_string(),
+                        serde_json::json!("max"),
+                    ),
+                ])),
+            }),
+            ..empty_recipe()
+        };
+
+        let client = SummonClient::new(create_test_context()).unwrap();
+        let resolved = client
+            .resolve_model_config(
+                &DelegateParams::default(),
+                &recipe,
+                &session_with(parent),
+                PROVIDER,
+            )
+            .expect("resolve_model_config");
+
+        assert_eq!(resolved.model_name, OVERRIDE_MODEL);
+        let request_params = resolved.request_params.expect("request_params");
+        assert_eq!(
+            request_params.get("anthropic_beta"),
+            Some(&serde_json::json!("recipe-beta")),
+        );
+        assert_eq!(
+            request_params.get("reasoning_effort"),
+            Some(&serde_json::json!("max")),
         );
     }
 

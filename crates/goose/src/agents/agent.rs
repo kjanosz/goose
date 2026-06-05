@@ -2867,6 +2867,7 @@ impl Agent {
             goose_provider: Some(provider_name.clone()),
             goose_model: Some(model_name.clone()),
             temperature: Some(model_config.temperature.unwrap_or(0.0)),
+            request_params: model_config.request_params.clone(),
             max_turns: None,
         };
 

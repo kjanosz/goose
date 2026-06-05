@@ -9,7 +9,7 @@ use super::types::{SlashCommandEntry, SlashCommandSource};
 use super::util::normalize_command_name;
 use crate::config::Config;
 use crate::recipe::build_recipe::{build_recipe_from_template, RecipeError};
-use crate::recipe::{RecipeParameter, RecipeParameterRequirement, Response};
+use crate::recipe::{Recipe, RecipeParameter, RecipeParameterRequirement, Response};
 
 const SLASH_COMMANDS_CONFIG_KEY: &str = "slash_commands";
 
@@ -149,6 +149,14 @@ pub fn resolve_command(
     command: &str,
     params_str: &str,
 ) -> Result<Option<(Option<Response>, String)>, String> {
+    Ok(resolve_command_with_recipe(command, params_str)?
+        .map(|(recipe, prompt)| (recipe.response, prompt)))
+}
+
+pub fn resolve_command_with_recipe(
+    command: &str,
+    params_str: &str,
+) -> Result<Option<(Recipe, String)>, String> {
     let full_command = format!("/{}", command);
     let Some(recipe_path) = get_recipe_for_command(&full_command) else {
         return Ok(None);
@@ -220,7 +228,7 @@ pub fn resolve_command(
         .collect::<Vec<_>>()
         .join("\n\n");
 
-    Ok(Some((recipe.response, prompt)))
+    Ok(Some((recipe, prompt)))
 }
 
 fn parse_recipe_args(
