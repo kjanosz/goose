@@ -284,13 +284,12 @@ fn resolve_provider_and_model(
             .with_temperature(temperature)
     };
 
-    let model_config = if let Some(request_params) =
-        recipe_settings.and_then(|s| s.request_params.clone())
-    {
-        model_config.with_merged_request_params(request_params)
-    } else {
-        model_config
-    };
+    let model_config =
+        if let Some(request_params) = recipe_settings.and_then(|s| s.request_params.clone()) {
+            model_config.with_merged_request_params(request_params)
+        } else {
+            model_config
+        };
 
     ResolvedProviderConfig {
         provider_name,

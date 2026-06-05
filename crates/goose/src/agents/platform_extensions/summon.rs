@@ -2312,10 +2312,7 @@ You review code."#;
 
         let mut parent = parent_config();
         parent.request_params = Some(HashMap::from([
-            (
-                "reasoning_effort".to_string(),
-                serde_json::json!("high"),
-            ),
+            ("reasoning_effort".to_string(), serde_json::json!("high")),
             ("top_p".to_string(), serde_json::json!(0.8)),
         ]));
 
@@ -2326,10 +2323,7 @@ You review code."#;
                 temperature: None,
                 max_turns: None,
                 request_params: Some(HashMap::from([
-                    (
-                        "reasoning_effort".to_string(),
-                        serde_json::json!("max"),
-                    ),
+                    ("reasoning_effort".to_string(), serde_json::json!("max")),
                     ("top_k".to_string(), serde_json::json!(40)),
                 ])),
             }),
@@ -2381,10 +2375,7 @@ You review code."#;
                         "anthropic_beta".to_string(),
                         serde_json::json!("recipe-beta"),
                     ),
-                    (
-                        "reasoning_effort".to_string(),
-                        serde_json::json!("max"),
-                    ),
+                    ("reasoning_effort".to_string(), serde_json::json!("max")),
                 ])),
             }),
             ..empty_recipe()
