@@ -108,14 +108,18 @@
         };
 
         devShells.default = pkgs.mkShell {
+          LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
+
           packages = buildInputs ++ (with pkgs; [
             cargo-watch
             cargo-edit
+            clang
             clippy
             gemini-cli # potentially useful during dev/testing
             go_1_25 # 'just' run-ui
             just # used in dev/test
             nodejs_24 # 'just' run-ui
+            pkg-config
             ripgrep
             rustfmt
             libxcb
